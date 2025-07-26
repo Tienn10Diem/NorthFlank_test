@@ -22,6 +22,12 @@ for i in range(0, len(coin_ids), 100):
         "price_change_percentage": "24h"
     }
     r = requests.get(url, params=params)
+
+    if r.status_code == 429:
+        print(f"❗ Lỗi 429 ở batch {i//100+1} – đợi 10 giây rồi thử lại...")
+        time.sleep(10)
+        r = requests.get(url, params=params)
+
     if r.status_code != 200:
         print(f"Lỗi {r.status_code} ở batch {i//100+1}")
         continue
@@ -42,10 +48,14 @@ for i in range(0, len(coin_ids), 100):
             "image": coin["image"],
             "time_collected": now_str
         })
-    time.sleep(1.2)
+
+    time.sleep(2.1)  # tránh bị chặn API
 
 df = pd.DataFrame(all_data)
-df.to_csv(OUTPUT_FILE, index=False, encoding="utf-8-sig")
 
-os.system("python upload_DR.py")
-print(f"✅ Đã lưu file: {OUTPUT_FILE}")
+if df.empty:
+    print("⚠️ Không thu được dữ liệu từ CoinGecko. Không gọi upload.")
+else:
+    df.to_csv(OUTPUT_FILE, index=False, encoding="utf-8-sig")
+    os.system("python upload_DR.py")
+    print(f"✅ Đã lưu file: {OUTPUT_FILE}")
