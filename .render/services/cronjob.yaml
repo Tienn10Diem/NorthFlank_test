@@ -1,9 +1,11 @@
 type: cronjob
-name: upload-drive
-schedule: "*/5 * * * *"  # mỗi 5 phút
-plan: free
+name: coin-upload
+schedule: "*/5 * * * *"
+plan: starter
 region: singapore
 envVars:
-  - key: GDRIVE_KEY
-    sync: false
-startCommand: "python app.py"
+  - key: PYTHONUNBUFFERED
+    value: "TRUE"
+  - key: GOOGLE_APPLICATION_CREDENTIALS
+    value: service_account.json
+startCommand: python upload_DR.py
