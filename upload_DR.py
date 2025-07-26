@@ -3,12 +3,10 @@ from googleapiclient.discovery import build
 from googleapiclient.http import MediaFileUpload, MediaIoBaseDownload
 import os
 import io
-import pandas as pd
 import json
 
-SERVICE_ACCOUNT_FILE = "service_account.json"  # Sẽ dùng từ biến môi trường
 SCOPES = ['https://www.googleapis.com/auth/drive']
-FOLDER_ID = "1M93UsOD7-Edm77CdZGDHkvR3aMmk9isP"  # ✅ Thay bằng thư mục Drive của bạn
+FOLDER_ID = "1M93UsOD7-Edm77CdZGDHkvR3aMmk9isP"
 FILENAME = "crypto_full_data.csv"
 LOCAL_NEW_FILE = "crypto_full_data.csv"
 
@@ -24,7 +22,7 @@ def get_existing_file_id(service):
     files = results.get('files', [])
     return files[0]['id'] if files else None
 
-def download_drive_file(service, file_id):
+def download_drive_file_raw(service, file_id):
     request = service.files().get_media(fileId=file_id)
     fh = io.BytesIO()
     downloader = MediaIoBaseDownload(fh, request)
@@ -32,11 +30,18 @@ def download_drive_file(service, file_id):
     while not done:
         _, done = downloader.next_chunk()
     fh.seek(0)
-    return pd.read_csv(fh)
+    return fh.read()
 
 def upload_to_drive():
     if not os.path.exists(LOCAL_NEW_FILE):
         print(f"❌ Không tìm thấy file local: {LOCAL_NEW_FILE}")
+        return
+
+    with open(LOCAL_NEW_FILE, "r", encoding="utf-8-sig") as f:
+        new_lines = f.readlines()
+
+    if len(new_lines) <= 1:
+        print("❌ File mới không có dữ liệu – không upload lên Drive.")
         return
 
     service_account_info = json.loads(os.environ["GDRIVE_KEY"])
@@ -44,24 +49,35 @@ def upload_to_drive():
     service = build('drive', 'v3', credentials=creds)
 
     file_id = get_existing_file_id(service)
-    print(f"📄 Đang kiểm tra file {FILENAME} trên Drive...")
-
-    df_new = pd.read_csv(LOCAL_NEW_FILE)
-    print(f"✅ Đã đọc file mới: {LOCAL_NEW_FILE} ({len(df_new)} dòng)")
-
     if file_id:
-        print(f"📥 Đã tìm thấy file cũ (ID: {file_id}) – sẽ tải về & gộp dữ liệu")
+        print("📥 Đã tìm thấy file cũ – tải raw để nối dòng")
         try:
-            df_old = download_drive_file(service, file_id)
-            df_combined = pd.concat([df_old, df_new], ignore_index=True)
-            df_combined = df_combined.drop_duplicates(subset=["id", "time_collected"])
-            df_combined.to_csv(LOCAL_NEW_FILE, index=False, encoding='utf-8-sig')
-            print(f"🔄 Đã gộp data (tổng cộng: {len(df_combined)} dòng)")
-        except Exception as e:
-            print(f"⚠️ Không thể đọc file cũ – chỉ dùng data mới. Lý do: {e}")
-    else:
-        print("📄 Chưa có file cũ – sẽ tạo file mới.")
+            old_bytes = download_drive_file_raw(service, file_id)
+            old_text = old_bytes.decode("utf-8-sig")
+            old_lines = old_text.splitlines(keepends=True)
 
+            header = old_lines[0]
+            combined_lines = old_lines[1:] + new_lines[1:]
+
+            # Loại trùng theo dòng
+            seen = set()
+            deduped = []
+            for line in combined_lines:
+                if line not in seen:
+                    deduped.append(line)
+                    seen.add(line)
+
+            with open(LOCAL_NEW_FILE, "w", encoding="utf-8-sig") as f_out:
+                f_out.write(header)
+                f_out.writelines(deduped)
+
+            print(f"🔄 Đã gộp & loại trùng: {len(deduped)} dòng mới + header")
+        except Exception as e:
+            print(f"⚠️ Không thể tải file cũ – dùng file mới. Lý do: {e}")
+    else:
+        print("📄 Chưa có file cũ – dùng file mới luôn")
+
+    # Upload lên Drive
     media = MediaFileUpload(LOCAL_NEW_FILE, mimetype='text/csv', resumable=False)
 
     if file_id:
@@ -72,10 +88,7 @@ def upload_to_drive():
         ).execute()
         print("✅ Đã cập nhật file trên Drive.")
     else:
-        file_metadata = {
-            'name': FILENAME,
-            'parents': [FOLDER_ID]
-        }
+        file_metadata = {'name': FILENAME, 'parents': [FOLDER_ID]}
         service.files().create(
             body=file_metadata,
             media_body=media,
