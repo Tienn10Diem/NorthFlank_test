@@ -8,7 +8,7 @@ from datetime import datetime
 # === CONFIG ===
 SERVICE_ACCOUNT_FILE = 'service_account.json'
 SCOPES = ['https://www.googleapis.com/auth/drive']
-DRIVE_FOLDER_ID = '1M93UsOD7-Edm77CdZGDHkvR3aMmk9isP'  # ⚠️ cần sửa nếu khác
+DRIVE_FOLDER_ID = '1M93UsOD7-Edm77CdZGDHkvR3aMmk9isP'  # Folder ID trong Shared Drive
 LOCAL_NEW_FILE = 'crypto_full_data.csv'
 
 def upload_to_drive():
@@ -30,23 +30,26 @@ def upload_to_drive():
         print(f"❌ Lỗi đọc file CSV: {e}")
         return
 
+    # Xác thực và build service
     credentials = service_account.Credentials.from_service_account_file(
         SERVICE_ACCOUNT_FILE, scopes=SCOPES)
-
     service = build('drive', 'v3', credentials=credentials)
 
     now = datetime.utcnow().strftime("%Y-%m-%d_%H-%M-%S")
     filename = f"crypto_data_{now}.csv"
+
     file_metadata = {
         'name': filename,
         'parents': [DRIVE_FOLDER_ID]
     }
+
     media = MediaFileUpload(LOCAL_NEW_FILE, mimetype='text/csv')
 
     file = service.files().create(
         body=file_metadata,
         media_body=media,
-        fields='id'
+        fields='id',
+        supportsAllDrives=True  # ✅ Thêm dòng này
     ).execute()
 
     print(f"✅ Đã upload file lên Google Drive: {filename}")
