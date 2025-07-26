@@ -2,6 +2,8 @@ import pandas as pd
 import requests
 import time
 from datetime import datetime
+import upload_DR
+import os
 
 # === CONFIG ===
 INPUT_FILE = '500_coins.csv'
@@ -28,6 +30,10 @@ def get_price_data(ids):
         return {}
 
 def main():
+    if not os.path.exists(INPUT_FILE):
+        print(f"❌ File {INPUT_FILE} không tồn tại.")
+        return
+
     df_ids = pd.read_csv(INPUT_FILE)
     ids = df_ids['id'].tolist()
 
@@ -43,23 +49,21 @@ def main():
                 'symbol': df_ids[df_ids['id'] == coin_id]['symbol'].values[0],
                 'current_price_usd': info.get('usd'),
                 'market_cap': info.get('usd_market_cap'),
-                'volume_24h': info.get('usd_24h_vol'),
-                'price_change_24h': info.get('usd_24h_change'),
+                'volume_24h': info.get('usd_24hr_vol'),
+                'price_change_24h': info.get('usd_24hr_change'),
                 'time_collected': now
             }
             all_data.append(entry)
-        time.sleep(1.2)  # tránh bị chặn
+        time.sleep(3)  # tăng sleep tránh bị 403
 
     if not all_data:
         print("❌ Không thu được dữ liệu nào. Dừng lưu và upload.")
         return
 
     df = pd.DataFrame(all_data)
-    df.to_csv(OUTPUT_FILE, index=False)
+    df.to_csv(OUTPUT_FILE, index=False, encoding="utf-8-sig")
     print(f"✅ Đã lưu file: {OUTPUT_FILE}")
 
-    # Gọi upload
-    import upload_DR
     upload_DR.upload_to_drive()
 
 if __name__ == "__main__":
