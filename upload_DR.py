@@ -8,7 +8,7 @@ import json
 
 SERVICE_ACCOUNT_FILE = "service_account.json"  # Sẽ dùng từ biến môi trường
 SCOPES = ['https://www.googleapis.com/auth/drive']
-FOLDER_ID = "1lwOhnDTvzVDTgwyPTTh2XcMyxihlJMQy"  # ✅ Thay bằng thư mục Drive của bạn
+FOLDER_ID = "1M93UsOD7-Edm77CdZGDHkvR3aMmk9isP"  # ✅ Thay bằng thư mục Drive của bạn
 FILENAME = "crypto_full_data.csv"
 LOCAL_NEW_FILE = "crypto_full_data.csv"
 
