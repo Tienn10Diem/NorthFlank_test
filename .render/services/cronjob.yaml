@@ -1,11 +1,19 @@
-type: cronjob
-name: coin-upload
-schedule: "*/5 * * * *"
-plan: starter
-region: singapore
-envVars:
-  - key: PYTHONUNBUFFERED
-    value: "TRUE"
-  - key: GOOGLE_APPLICATION_CREDENTIALS
-    value: service_account.json
-startCommand: python upload_DR.py
+services:
+  - type: cron
+    name: coin-cronjob
+    runtime: python
+    schedule: "*/5 * * * *"
+    plan: free
+    buildCommand: "pip install -r requirements.txt"
+    startCommand: "python main.py"
+    envVars:
+      - key: GDRIVE_KEY
+        value: |-
+          {
+            "type": "service_account",
+            "project_id": "my-project-123",
+            "private_key_id": "abc123...",
+            "private_key": "-----BEGIN PRIVATE KEY-----\nABCDEF...\n-----END PRIVATE KEY-----\n",
+            "client_email": "...",
+            ...
+          }
