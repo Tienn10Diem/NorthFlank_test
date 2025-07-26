@@ -1,0 +1,9 @@
+type: cronjob
+name: upload-drive
+schedule: "*/5 * * * *"  # mỗi 5 phút
+plan: free
+region: singapore
+envVars:
+  - key: GDRIVE_KEY
+    sync: false
+startCommand: "python app.py"
